@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>天氣預報</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gradient-to-br from-sky-400 via-blue-500 to-indigo-600 min-h-screen flex items-center justify-center p-4">
+
+<div class="bg-white/80 backdrop-blur-md rounded-3xl shadow-2xl p-8 w-full max-w-3xl">
+
+<h1 class="text-3xl font-bold text-center mb-6">🌤 台灣天氣預報</h1>
+
+<div class="flex gap-2 mb-4">
+<input id="cityInput" type="text"
+placeholder="輸入台灣縣市（例如：台北、高雄）"
+class="flex-1 p-3 rounded-xl border">
+<button onclick="getWeather()" class="bg-blue-500 text-white px-4 rounded-xl hover:bg-blue-600">
+查詢
+</button>
+</div>
+
+<button onclick="getLocationWeather()" class="w-full bg-indigo-500 text-white p-3 rounded-xl mb-6 hover:bg-indigo-600">
+📍 使用目前定位
+</button>
+
+<div id="weatherResult" class="text-center"></div>
+<div id="forecastResult" class="mt-8 grid grid-cols-2 md:grid-cols-5 gap-4"></div>
+
+</div>
+
+<script>
+
+const API_KEY = "061b566180264283fe4df84ddb7edb12";
+
+/* 台灣城市對照表 */
+const cityMap = {
+"台北":"Taipei","臺北":"Taipei",
+"新北":"New Taipei","桃園":"Taoyuan",
+"台中":"Taichung","臺中":"Taichung",
+"台南":"Tainan","臺南":"Tainan",
+"高雄":"Kaohsiung","基隆":"Keelung",
+"新竹":"Hsinchu","苗栗":"Miaoli",
+"彰化":"Changhua","南投":"Nantou",
+"雲林":"Yunlin","嘉義":"Chiayi",
+"屏東":"Pingtung","宜蘭":"Yilan",
+"花蓮":"Hualien","台東":"Taitung",
+"臺東":"Taitung","澎湖":"Penghu",
+"金門":"Kinmen","連江":"Lienchiang"
+};
+
+function getWeather() {
+let city = document.getElementById("cityInput").value.trim();
+
+if (cityMap[city]) {
+city = cityMap[city];
+}
+
+fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city},TW&appid=${API_KEY}&units=metric&lang=zh_tw`)
+.then(res => res.json())
+.then(data => {
+if (data.cod !== 200) {
+document.getElementById("weatherResult").innerHTML =
+"<p class='text-red-500'>找不到城市</p>";
+return;
+}
+displayWeather(data);
+fetchForecast(city);
+});
+}
+
+function getLocationWeather() {
+navigator.geolocation.getCurrentPosition(position => {
+const lat = position.coords.latitude;
+const lon = position.coords.longitude;
+fetchWeatherByCoords(lat, lon);
+});
+}
+
+function fetchWeatherByCoords(lat, lon) {
+fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&lang=zh_tw`)
+.then(res => res.json())
+.then(data => {
+displayWeather(data);
+fetchForecastByCoords(lat, lon);
+});
+}
+
+function displayWeather(data) {
+const icon = data.weather[0].icon;
+
+document.getElementById("weatherResult").innerHTML = `
+<h2 class="text-2xl font-semibold">${data.name}</h2>
+<img src="https://openweathermap.org/img/wn/${icon}@2x.png" class="mx-auto">
+<p class="text-6xl font-bold my-4">${data.main.temp}°C</p>
+<p class="text-xl">${data.weather[0].description}</p>
+<p class="mt-2 text-gray-600">
+濕度：${data.main.humidity}% ｜ 風速：${data.wind.speed} m/s
+</p>
+`;
+}
+
+function fetchForecast(city) {
+fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${city},TW&appid=${API_KEY}&units=metric&lang=zh_tw`)
+.then(res => res.json())
+.then(data => displayForecast(data));
+}
+
+function fetchForecastByCoords(lat, lon) {
+fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&lang=zh_tw`)
+.then(res => res.json())
+.then(data => displayForecast(data));
+}
+
+function displayForecast(data) {
+
+let dailyData = {};
+data.list.forEach(item => {
+let date = item.dt_txt.split(" ")[0];
+if (!dailyData[date] && item.dt_txt.includes("12:00:00")) {
+dailyData[date] = item;
+}
+});
+
+let forecastHTML = "";
+
+Object.keys(dailyData).slice(0,5).forEach(date => {
+let item = dailyData[date];
+let d = new Date(date);
+let formattedDate = `${d.getMonth()+1}/${d.getDate()}`;
+let icon = item.weather[0].icon;
+
+forecastHTML += `
+<div class="bg-white rounded-2xl shadow p-4 text-center hover:scale-105 transition">
+<p class="font-semibold">${formattedDate}</p>
+<img src="https://openweathermap.org/img/wn/${icon}.png" class="mx-auto">
+<p class="text-lg font-bold">${item.main.temp}°C</p>
+<p class="text-sm">${item.weather[0].description}</p>
+</div>
+`;
+});
+
+document.getElementById("forecastResult").innerHTML = forecastHTML;
+}
+
+</script>
+
+</body>
+</html>
